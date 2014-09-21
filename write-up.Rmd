@@ -1,0 +1,31 @@
+---
+title: "Project write-up"
+output: html_document
+---
+
+
+## Executive Summary
+This is a summary on an attempt to use machine learning to classify the quality of forearm curl using sensor data.  Based on the analysis, 90% accuracy may be achieved by using just 8 features available.  
+
+## Feature Selection
+Physical insight is used to select features to be included in the model. The angles detected by the four sensors should give a good picture of how the person is performing his exercise, e.g the angle at the belt should give a measurement of whether the person is throwing his hip forward (Class E). In addition, angles measured in the y-z plane will be much more likely to be meaningfully correlated to the different classes of exercise forms.  
+
+Unfortunately, a code book did not exist match up the Euler angles and the axes to select which angles are approximately in the y-z plane.  To select the right Euler angle, GLM is used compare which Euler angle(s) more meaningfully explains the classes.  GLM is used instead of Random Forest to perform the evaluation (see later section for the reason behind using Random Forest to build the prediction model)  Based on the comparison, yaw is determined to have a stronger power in predicting class.
+
+Translational and angular accelerations may have been useful but very likely, their effects are already covered by the proper yaw angles (0.472 training accuracy >0.443 and 0.439).
+
+Another set of features that were not well described were magnetometer data.  Again GLM was used and it showed that y-axis of magnetometer data are the most useful in predicting class (0.473 training accuracy >0.428 and 0.370)
+
+## Model Building and Cross-validation
+Random Forest is selected to be used to build the prediction model because of its accuracy in performing classification tasks.  One important trade-off is speed and in order to maximize efficiency, a smaller set of data (5000 records randomly chosen) was used in this modeling exercise.  30% of the data are used as to characterize the out-of-sample error rate and 70% used as the training set.
+
+## Results
+The Random Forest model based on the reduced set of data was found to have a training set accuracy of 89.5% and when the model was used on the test set, it gave an accuracy of 90.6% and that should be a good estimate of out-of-sample errors.  As a side note, the model was able to predict 19/20 test cases for submission correctly.  The modeling took about 15 minutes of system time.
+
+## Discussion
+The analysis shows that a reasonably accurate prediction of exercise quality based on class may be achieved by using a small number of features efficiently.  The accuracy and interpretability may be improved if a code dictionary was given and more meaningful variables are included.  Also, to understand correlation between the classes, which are non-ordinal factors, an analyst could create a dummy booleen variable for each class and use available correlation tools to detect each class' correlation with available features.   
+
+## Notes
+Because of my problems with knitting Rmd that contains real R code into HTML or PDF, I am including a markdown file project.Rmd in the repo and it includes the actual work that I performed in coming up with the model.
+
+

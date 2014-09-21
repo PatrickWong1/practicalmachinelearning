@@ -1,0 +1,213 @@
+---
+title: "Sensor-based Exercise Quality Prediction"
+output: pdf_document
+---
+## Executive Summary
+
+## Loading the right Libraries
+```{r}
+#install.packages("CORElearn")
+#install.packages("BradleyTerry2")
+install.packages("nloptr")
+library("caret")
+```
+
+## Getting and Cleaning Data
+```{r, echo=FALSE}
+rawtrain<-read.csv("~/Courseracourses/PracticalMachineLearning/pml-training.csv")
+rawtest<-read.csv("~/Courseracourses/PracticalMachineLearning/pml-testing.csv")
+
+summary(rawtrain)
+
+```
+
+## Pre-processing
+
+Take out useless columns.
+## Feature Selection
+```{r}
+nums<-sapply(rawtrain,is.numeric)  # Find columns that are numeric
+rawtrainnum=rawtrain[,nums]  #retain only numeric column
+
+rawtrain=rawtrain[rawtrain$new_window!="yes",] #take out new window rows
+
+rawtraina=rawtrain
+#Take out columns which are all NAs
+for (i in 1:dim(rawtraina)[2]){
+  if (all(is.na(rawtraina[,i]))) {rawtraina[,i]=NULL}
+}  #did not seem to work great
+
+#Select only columns that matter
+nums<-sapply(rawtraina,is.numeric)  # Find columns that are numeric
+rawtrainanum=rawtraina[,nums]  #retain only numeric column
+cor(rawtrainanum)
+selection = c("")
+
+```
+
+
+## Model Building
+
+```{r}
+#attempt at random forest
+set.seed(1234)
+reduced_rawtrain=rawtrain[sample(nrow(rawtrain),5000),]
+inTrain=createDataPartition(y=reduced_rawtrain$classe,
+                            p=0.7, list=FALSE)
+training=reduced_rawtrain[inTrain,]
+testing=reduced_rawtrain[-inTrain,]
+set.seed(1234)
+start.time=Sys.time()
+modFit<-train(classe~
+                yaw_dumbbell
+              +yaw_arm
+              +yaw_forearm
+              +yaw_belt
+               +magnet_arm_y
+               +magnet_dumbbell_y
+               +magnet_forearm_y
+               +magnet_belt_y,
+              data=training, method="rf", prox=TRUE)
+modFit
+end.time=Sys.time()
+end.time-start.time
+
+pred=predict(modFit,testing)
+testing$predRight<-pred==testing$classe
+a=table(pred,testing$classe)
+diag(a)=0
+(dim(testing)[1]-sum(a))/dim(testing)[1]
+
+#Without the magnet terms, training accuracy 0.831.  testing  0.846
+#With the magnet terms, training 0.895, testing 0.906
+
+#attempt at GLM
+inTrain=createDataPartition(y=rawtrain$classe,
+                            p=0.7, list=FALSE)
+training=rawtrain[inTrain,]
+testing=rawtrain[-inTrain,]
+set.seed(1234)
+modelFit=train(classe~
+                 gyros_belt_x
+               +gyros_arm_x
+               +gyros_dumbbell_x
+               +gyros_forearm_x
+               +accel_belt_x
+               +accel_belt_y
+               +accel_arm_x
+               +accel_arm_y
+               +accel_dumbbell_x
+               +accel_dumbbell_y
+               +accel_forearm_x
+               +accel_forearm_y
+               +pitch_belt
+               +pitch_arm
+               +pitch_dumbbell
+               +roll_belt
+               +roll_arm
+               +magnet_arm_x
+               +magnet_arm_y
+               +magnet_dumbbell_x
+               +magnet_dumbbell_y
+               +magnet_forearm_x
+               +magnet_forearm_y
+               +magnet_belt_x
+               +magnet_belt_y,
+               method="rpart",data=training)
+#above model gave accuracy of 0.477.
+
+#Another attempt to start with Euler angles and then add others
+set.seed(1234)
+modelFit=train(classe~
+                 pitch_belt
+               +pitch_arm
+               +pitch_dumbbell
+               +pitch_forearm,
+               method="rpart",data=training)
+modelFit
+#Accuracy = 0.443
+
+set.seed(1234)
+modelFit=train(classe~
+                 roll_belt
+               +roll_arm
+               +roll_dumbbell
+               +roll_forearm,
+               method="rpart",data=training)
+modelFit
+#Accuracy = 0.439
+
+set.seed(1234)
+modelFit=train(classe~
+                 yaw_belt
+               +yaw_arm
+               +yaw_dumbbell
+               +yaw_forearm,
+               method="rpart",data=training)
+modelFit
+#Accuracy=0.472
+
+#The above indicate that the the yaw Euler angles may explain more of the #variances than the other axes'.
+
+#Investigate magnetometer
+set.seed(1234)
+modelFit=train(classe~
+                magnet_arm_x
+               +magnet_dumbbell_x
+               +magnet_forearm_x
+               +magnet_belt_x,
+               method="rpart",data=training)
+modelFit
+#Accuracy = 0.370
+
+set.seed(1234)
+modelFit=train(classe~
+                magnet_arm_y
+               +magnet_dumbbell_y
+               +magnet_forearm_y
+               +magnet_belt_y,
+               method="rpart",data=training)
+modelFit
+#Accuracy = 0.473
+
+set.seed(1234)
+modelFit=train(classe~
+                magnet_arm_z
+               +magnet_dumbbell_z
+               +magnet_forearm_z
+               +magnet_belt_z,
+               method="rpart",data=training)
+modelFit
+#Accuracy = 0.428
+
+#y magnet seems to be explaining great amount of the variances
+
+
+```
+
+## Prediction 
+
+
+```{r, echo=FALSE}
+answers=predict(modFit,rawtest)
+answers
+
+```
+
+```{r, echo=FALSE, }
+# Writing answers to file
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+setwd("~/Courseracourses/PracticalMachineLearning/projectanswers")
+
+pml_write_files(answers)
+
+setwd("~/Courseracourses/PracticalMachineLearning")
+```
+
